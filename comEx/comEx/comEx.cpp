@@ -1,44 +1,46 @@
 #include <windows.h>
-#include <shObjIdl.h>
+#include <shobjidl.h> 
+#include <atlbase.h> // Contains the declaration of CComPtr.
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR pCmdLine, int nCmdShow)
 {
-	// Initialize the COM library.
-	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-	if (SUCCEEDED(hr))
-	{
-		IFileOpenDialog* pFileOpen;
+    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
+        COINIT_DISABLE_OLE1DDE);
+    if (SUCCEEDED(hr))
+    {
+        CComPtr<IFileOpenDialog> pFileOpen;
 
-		// Create the FileOpenDialog object.
-		hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+        // Create the FileOpenDialog object.
+        hr = pFileOpen.CoCreateInstance(__uuidof(FileOpenDialog));
+        if (SUCCEEDED(hr))
+        {
+            // Show the Open dialog box.
+            hr = pFileOpen->Show(NULL);
 
-		if (SUCCEEDED(hr))
-		{
-			// Show the Open dialog box.
-			hr = pFileOpen->Show(NULL);
+            // Get the file name from the dialog box.
+            if (SUCCEEDED(hr))
+            {
+                CComPtr<IShellItem> pItem;
+                hr = pFileOpen->GetResult(&pItem);
+                if (SUCCEEDED(hr))
+                {
+                    PWSTR pszFilePath;
+                    hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
 
-			if (SUCCEEDED(hr))
-			{
-				// Get the file name from the dialog box.
-				IShellItem* pItem;
-				hr = pFileOpen->GetResult(&pItem);
-				if (SUCCEEDED(hr))
-				{
-					PWSTR pszFilePath;
-					hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+                    // Display the file name to the user.
+                    if (SUCCEEDED(hr))
+                    {
+                        MessageBox(NULL, pszFilePath, L"File Path", MB_OK);
+                        CoTaskMemFree(pszFilePath);
+                    }
+                }
 
-					// Display the file name to the user.
-					if (SUCCEEDED(hr))
-					{
-						MessageBoxW(NULL, pszFilePath, L"FilePath", MB_OK);
-						CoTaskMemFree(pszFilePath);
-					}
-					pItem->Release();
-				}
-			}
-			pFileOpen->Release();
-		}
-		CoUninitialize();
-	}
-	return 0;
+                // pItem goes out of scope.
+            }
+
+            // pFileOpen goes out of scope.
+        }
+        CoUninitialize();
+    }
+    return 0;
 }
